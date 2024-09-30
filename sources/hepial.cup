@@ -1,0 +1,173 @@
+import java_cup.runtime.*;
+import java.util.Vector;
+import java.io.*;
+import java.util.*;
+
+action code {:
+    TDS table = TDS.getInstance();
+:}
+
+terminal PRG, STARTPRG, ENDPRG, CONSTANT, SEMICOLON, STARTFUNC, ENDFUNC, OPENPARENT;
+terminal CLOSEPARENT, COMMA, EQUAL, DOUBLEPOINTS, OPENBRACK, CLOSEBRACK;
+terminal READ, WRITE, RETURN, IF, THEN, ELSE, ENDIF, WHILE, DO, ENDWHILE;
+terminal FOR, FROM, TO, ENDFOR, TRUE, FALSE,  PLUS, MINUS, TIMES, DIVIDE;
+terminal EQUALS, DIFF, INF, INFEQUAL, SUP, SUPEQUAL, AND, OR, TILDA, NOT;
+
+terminal String IDENT, STRINGCONST, TINTEGER, TBOOLEAN;
+terminal int INTEGERCONST;
+
+// Non terminal rules that return a RESULT value
+non terminal DeclarationProgramme program, header;
+non terminal Bloc declar_lst, body;
+non terminal ArrayList<Instruction> instr_lst, declars;
+non terminal Instruction declar, declar_var;
+non terminal Constante declar_const;
+non terminal Expression expr, access, operand;
+non terminal Pour for_instr;
+non terminal TantQue while_instr;
+non terminal return_instr;
+non terminal Condition cond_instr;
+non terminal Write write_instr;
+non terminal Read read_instr;
+non terminal Instruction instr;
+non terminal Affectation assign;
+non terminal index;
+non terminal Unaire op_una;
+non terminal Binaire op_bin;
+
+non terminal ArrayList<Idf> l_ident;
+non terminal Typebase type;
+non terminal Typebase typebase;
+
+// Precedences
+precedence left PLUS, MINUS, TIMES, DIVIDE, EQUALS, DIFF;
+precedence left INF, SUP, INFEQUAL, SUPEQUAL, AND, OR, DOUBLEPOINTS;
+precedence right TILDA, NOT;
+
+program           ::= header:p declar_lst:declarations STARTPRG body:instructions ENDPRG
+                    {:  p.setInstructions(instructions);
+                        p.setDeclarations(declarations);
+                        table.putEmpty(p.getIdentifier().getNom());
+                        p.setTDS(table);
+                        System.out.println("Analyse syntaxique OK"); 
+                        RESULT = p;
+                    :};
+                    
+header            ::= PRG IDENT:id {: RESULT = new DeclarationProgramme(new Idf(id, "", idleft, idright), "", idleft, idright); :};
+
+declar_lst        ::=  declars:lst {: RESULT = new Bloc(lst, "", lstleft, lstright); :};
+
+declars           ::= {: ArrayList<Instruction> lst = new ArrayList<Instruction>();
+                          RESULT = lst; :}
+                      | declars:d_lst declar:d {:
+                          ArrayList<Instruction> declars_list = new ArrayList<Instruction>(d_lst); 
+                          declars_list.add(d); 
+                          RESULT = declars_list; :};
+
+declar            ::= declar_var:v {: RESULT = v; :}
+                      | declar_const:c {:
+                            if (table.getConstantTable().containsKey(c.getIdentifier().getNom())) {
+                                throw new RuntimeException(
+                                    "Impossible de déclarer plusieurs fois la même variable "
+                                    + c.getIdentifier().getNom() + " à la ligne " + c.getIdentifier().getLine()
+                                );                
+                            }
+                            table.putConstant(c.getIdentifier().getNom(), c.getType()); 
+                            RESULT = c; 
+                        :};
+
+declar_var        ::= type:t l_ident:l SEMICOLON {: 
+                        for(Idf i: l) {
+                            if (table.getTable().containsKey(i.getNom())) {
+                                throw new RuntimeException(
+                                    "Impossible de déclarer plusieurs fois la même variable "
+                                    + i.getNom() + " à la ligne " + i.getLine()
+                                );                
+                            }
+                            table.put(i.getNom(), t);
+                        }
+                        RESULT = new Variable(t, l, "", t.getLine(), t.getColumn()); :};
+
+l_ident           ::= IDENT:id {: 
+                          ArrayList<Idf> idfs = new ArrayList<Idf>();
+                          idfs.add(new Idf(id, "", idleft, idright));
+                          RESULT = idfs; 
+                      :}
+                      | l_ident:idf_list COMMA IDENT:id {:                         
+                          ArrayList<Idf> idfs = new ArrayList<Idf>(idf_list);
+                          idfs.add(new Idf(id, "", idleft, idright));
+                          RESULT = idfs; 
+                      :};
+
+type              ::= typebase:t {: RESULT = t; :};
+
+typebase          ::= TINTEGER:i {: RESULT = new TypeInteger("entier", "", ileft, iright); :}
+                      | TBOOLEAN:b {: RESULT = new TypeBooleen("booleen", "", bleft, bright); :};
+
+declar_const      ::= CONSTANT:c type:t IDENT:i EQUAL expr:e SEMICOLON {: RESULT = new Constante(t, new Idf(i, "", ileft, iright), e, "", cleft, cright);  :};
+
+expr              ::= expr:left op_bin:op expr:right
+                      {:
+                       // build binary expression
+                         op.lierGauche(left);
+                         op.lierDroit(right);
+                         RESULT = op;  
+                      :}
+                      | op_una:op expr:una {: op.lier(una);
+                                              RESULT = op; :}
+                      | OPENPARENT:openp expr:ex CLOSEPARENT {: RESULT = new Parenthese(ex, "", openpleft, openpright); :}
+                      | operand:op {: RESULT = op; :};
+
+op_bin            ::= PLUS:o       {: RESULT = new Addition("", oleft, oright); :}
+                      | MINUS:o    {: RESULT = new Minus("", oleft, oright); :}
+                      | TIMES:o    {: RESULT = new Times("", oleft, oright); :}
+                      | DIVIDE:o   {: RESULT = new Divide("", oleft, oright); :}
+                      | EQUALS:o   {: RESULT = new Egal("", oleft, oright); :} 
+                      | DIFF:o     {: RESULT = new Diff("", oleft, oright); :}
+                      | INF:o      {: RESULT = new Inf("", oleft, oright); :}
+                      | SUP:o      {: RESULT = new Sup("", oleft, oright); :}
+                      | INFEQUAL:o {: RESULT = new Infequal("", oleft, oright); :}
+                      | SUPEQUAL:o {: RESULT = new Supequal("", oleft, oright); :}
+                      | AND:o      {: RESULT = new And("", oleft, oright);  :}
+                      | OR:o       {: RESULT = new Or("", oleft, oright);  :};
+
+op_una            ::= TILDA:o      {: RESULT = new Tilda("", oleft, oright);  :}
+                      | NOT:o      {: RESULT = new Not("", oleft, oright);  :};
+
+operand           ::= access:access       {: RESULT = access; :}
+                      | INTEGERCONST:ib   {: RESULT = new Nombre(ib, "", ibleft, ibright); :}
+                      | TRUE:tr            {: RESULT = new True("", trleft, trright); :}
+                      | FALSE:fa           {: RESULT = new False("", faleft, faright); :};
+
+access            ::= IDENT:id   {: RESULT = new Idf(id, "", idleft, idright); :};
+
+body              ::= instr_lst:i {: RESULT = new Bloc(i, "", ileft, iright); :};
+
+instr_lst         ::= {: RESULT = new ArrayList(); :}
+                      | instr_lst:instructionList instr:instruction
+                      {:
+                        ArrayList<Instruction> instructions = new ArrayList<Instruction>(instructionList);
+                        instructions.add(instruction);
+                        RESULT = instructions;
+                      :};
+
+instr             ::= assign:inst   {: RESULT = inst; :}
+                      | write_instr:write {: RESULT = write; :}
+                      | read_instr:read  {: RESULT = read; :}
+                      | cond_instr:cond  {: RESULT = cond; :}
+                      | while_instr:tantque {: RESULT = tantque; :}
+                      | for_instr:pour   {: RESULT = pour; :};
+
+assign            ::= access:dest EQUAL:e expr:src SEMICOLON {: RESULT = new Affectation(dest, src, "", eleft, eright); :};
+
+write_instr       ::= WRITE:w expr:ex SEMICOLON {: RESULT = new Write(ex, "", wleft, wright); :}
+                      | WRITE:w STRINGCONST:s SEMICOLON  {: RESULT = new Write(new Stringconst(s, "", sleft, sright), "", wleft, wright); :};
+
+read_instr        ::= READ:r IDENT:id SEMICOLON {: RESULT = new Read(new Idf(id, "", idleft, idright), "", rleft, rright);  :};
+
+cond_instr        ::= IF:i expr:ex THEN body:t ELSE body:e ENDIF {: RESULT = new Condition(ex, t, e, "", ileft, iright); :}
+                      | IF:i expr:ex THEN body:t ENDIF {: RESULT = new Condition(ex, t, "", ileft, iright); :};
+
+while_instr       ::= WHILE:w expr:e DO body:b ENDWHILE {: RESULT = new TantQue(e, b, "", wleft, wright);  :};
+
+for_instr         ::= FOR:f IDENT:i FROM expr:min TO expr:max DO body:b ENDFOR {: RESULT = new Pour(new Idf(i, "", ileft, iright), min, max, b, "", fleft, fright);  :};

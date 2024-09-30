@@ -1,0 +1,10 @@
+programme demo1
+entier n;
+entier result;
+debutprg
+    ecrire "Nombre a mettre au carré: ";
+    lire n;
+    result = n*n;
+    ecrire "Résultat:";
+    ecrire result;
+finprg

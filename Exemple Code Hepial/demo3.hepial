@@ -1,0 +1,20 @@
+programme Fibonacci
+entier n1;
+entier n2;
+entier n3;
+entier max;
+entier i;
+debutprg
+    n1 = 1;
+    n2 = 1;
+    n3 = 1;
+    ecrire "Veuillez entrer la valeur de la borne supérieure :";
+    lire max;
+    ecrire "--- Suite de Fibonacci ---";
+    pour i allantde 0 a max faire
+        ecrire n3;
+        n3 = n1 + n2;
+        n1 = n2;
+        n2 = n3;
+	finpour
+finprg

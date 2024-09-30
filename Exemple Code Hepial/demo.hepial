@@ -1,0 +1,45 @@
+programme demo
+    entier i;
+    entier b;
+    entier c;
+    entier times;
+    booleen d;
+    constante entier MACONSTANTE = 1000;
+    constante booleen MACONSTANTE2 = faux;
+debutprg
+    ecrire MACONSTANTE;
+    b = 3;
+    c = b + b;
+    times = (b + MACONSTANTE) * 2;
+    ecrire times;
+    si b == 3 alors
+        b = b + 1;
+    finsi
+    si b >= c alors
+        si b >= c alors
+            c = b - c;
+        sinon
+            c = b + c;
+        finsi
+        c = b - c;
+    sinon
+        c = b + c;
+    finsi
+    ecrire "4 + 4";
+    lire times;
+    ecrire "valeur de times :";
+    ecrire times;
+    d = non MACONSTANTE2;
+    ecrire d;
+    tantque (d == vrai) ou (b <= 5) faire
+        b = b + 1;
+        d = faux;
+    fintantque
+    ecrire d;
+    ecrire b;
+    pour i allantde 0 a 9 faire
+        c = c + 1;
+        ecrire c;
+    finpour
+    ecrire i;
+finprg
